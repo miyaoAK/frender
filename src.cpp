@@ -517,6 +517,225 @@ void bt_mandelbrot(unsigned char *data, int w, int h) {
 }
 */
 
+unsigned pixelcolor(unsigned maxiter, float px, float py) {
+    int i = 0;
+    float x = 0.f;
+    float y = 0.f;
+    float x2 = 0.f;
+    float y2 = 0.f;
+    while (x2 + y2 <= 4 && i < maxiter) {
+        y = ((x + x) * y) + py;
+        x = x2 - y2 + px;
+        x2 = x * x;
+        y2 = y * y;
+        i++;
+    }
+    if (i >= maxiter) return 0x000000;
+    return colorPalette[i];
+}
+
+unsigned p8trace(unsigned& sx, unsigned& sy, unsigned char start, unsigned cc) {
+    float kx = helpers::calculate_scaling_factor(-2.5f, 1.f, 0.f, static_cast<float>(pixels_x));
+    float ky = helpers::calculate_scaling_factor(-1.f, 1.f, 0.f, static_cast<float>(pixels_y));
+    unsigned kt = start;
+    char match_key = -1;
+    char mismatch_key = -1;
+
+    unsigned b8color[8];
+
+    for (int i = 0; i < 8; i++) {
+        if (kt == 1 && sy > 0 && sx > 0) {
+            float py = helpers::calculate_scaled(static_cast<float>(sy - 1), ky, -1.f);
+            float px = helpers::calculate_scaled(static_cast<float>(sx), kx, -2.5f);
+            if (pixelcolor(256, px, py) != cc) {
+                mismatch_key = 1;
+            } else {
+                match_key = 1;
+            }
+        }
+        else if (kt == 2 && sy > 0) {
+            float py = helpers::calculate_scaled(static_cast<float>(sy - 1), ky, -1.f);
+            float px = helpers::calculate_scaled(static_cast<float>(sx - 1), kx, -2.5f);
+            if (pixelcolor(256, px, py) != cc) {
+                mismatch_key = 2;
+            } else {
+                match_key = 2;
+            }
+        }
+        else if (kt == 3 && sx > 0) {
+            float py = helpers::calculate_scaled(static_cast<float>(sy), ky, -1.f);
+            float px = helpers::calculate_scaled(static_cast<float>(sx - 1), kx, -2.5f);
+            if (pixelcolor(256, px, py) != cc) {
+                mismatch_key = 3;
+            } else {
+                match_key = 3;
+            }
+        }
+        else if (kt == 4 && sy < pixels_y && sx > 0) {
+            float py = helpers::calculate_scaled(static_cast<float>(sy + 1), ky, -1.f);
+            float px = helpers::calculate_scaled(static_cast<float>(sx - 1), kx, -2.5f);
+            if (pixelcolor(256, px, py) != cc) {
+                mismatch_key = 4;
+            } else {
+                match_key = 4;
+            }
+        }
+        else if (kt == 5 && sy < pixels_y) {
+            float py = helpers::calculate_scaled(static_cast<float>(sy + 1), ky, -1.f);
+            float px = helpers::calculate_scaled(static_cast<float>(sx), kx, -2.5f);
+            if (pixelcolor(256, px, py) != cc) {
+                mismatch_key = 5;
+            } else {
+                match_key = 5;
+            }
+        }
+        else if (kt == 6 && sy < pixels_y && sx < pixels_x) {
+            float py = helpers::calculate_scaled(static_cast<float>(sy + 1), ky, -1.f);
+            float px = helpers::calculate_scaled(static_cast<float>(sx + 1), kx, -2.5f);
+            if (pixelcolor(256, px, py) != cc) {
+                mismatch_key = 6;
+            } else {
+                match_key = 6;
+            }
+        }
+        else if (kt == 7 && sx < pixels_x) {
+            float py = helpers::calculate_scaled(static_cast<float>(sy), ky, -1.f);
+            float px = helpers::calculate_scaled(static_cast<float>(sx + 1), kx, -2.5f);
+            if (pixelcolor(256, px, py) != cc) {
+                mismatch_key = 7;
+            } else {
+                match_key = 7;
+            }
+        }
+        else if (kt == 8 && sx < pixels_x && sy > 0) {
+            float py = helpers::calculate_scaled(static_cast<float>(sy - 1), ky, -1.f);
+            float px = helpers::calculate_scaled(static_cast<float>(sx + 1), kx, -2.5f);
+            if (pixelcolor(256, px, py) != cc) {
+                mismatch_key = 8;
+            } else {
+                match_key = 8;
+            }
+        }
+        if (match_key != -1 && mismatch_key != -1) {
+            break;
+        }
+        kt++;
+        if (kt >= 8) kt = 1;
+    }
+
+    if (match_key == 1) {
+        sy--;
+        return 5;
+    }
+    else if (match_key == 2) {
+        sx--;
+        sy--;
+        return 6;
+    }
+    else if (match_key == 3) {
+        sx--;
+        return 7;
+    }
+    else if (match_key == 4) {
+        sx--;
+        sy++;
+        return 8;
+    }
+    else if (match_key == 5) {
+        sy++;
+        return 1;
+    }
+    else if (match_key == 6) {
+        sx++;
+        sy++;
+        return 2;
+    }
+    else if (match_key == 7) {
+        sx++;
+        return 3;
+    }
+    else if (match_key == 8) {
+        sx++;
+        sy--;
+        return 4;
+    }
+
+    return 0;
+}
+
+unsigned bytef_pixel_loc(unsigned sx, unsigned sy, unsigned key) {
+    auto val = sy * pixels_x * 3;
+    val += sx * 3;
+    if (key == 1) {
+        return val - (pixels_x * 3);
+    } else if (key == 2) {
+        return val - (pixels_x * 3) - 3;
+    } else if (key == 3) {
+        return val - 3;
+    } else if (key == 4) {
+        return val + (pixels_x * 3) - 3;
+    } else if (key == 5) {
+        return val + (pixels_x * 3);
+    } else if (key == 6) {
+        return val + (pixels_x * 3) + 3;
+    } else if (key == 7) {
+        return val + 3;
+    } else if (key == 8) {
+        return val - (pixels_x * 3) + 3;
+    }
+}
+
+void bt_mandelbrot(unsigned char* data, int w, int h) {
+    float kx = helpers::calculate_scaling_factor(-2.5f, 1.f, 0.f, static_cast<float>(w));
+    float ky = helpers::calculate_scaling_factor(-1.f, 1.f, 0.f, static_cast<float>(h));
+    unsigned cc = pixelcolor(256, -1.f, -2.5f);
+    unsigned ctable[50];
+    unsigned ctable_iter = 0;
+    unsigned spx = 0;
+    unsigned spy = 0;
+    bool switchAlgoToBT = false;
+    for (unsigned y = 0; y < h; y++) {
+        float py = helpers::calculate_scaled(static_cast<float>(y), ky, -1.f);
+        for (unsigned x = 1; x < w; x++) {
+            float px = helpers::calculate_scaled(static_cast<float>(x), kx, -2.5f);
+            float nc = pixelcolor(256, px, py);
+            if (nc != cc) {
+                std::cout << "nc: " << nc << '\n';
+                switchAlgoToBT = true;
+                ctable[ctable_iter] = cc;
+                ctable_iter++;
+                spx = x;
+                spy = y;
+                break;
+            }
+        }
+        if (switchAlgoToBT) break;
+    }
+
+    std::cout << "Color: " << cc << '\n';
+    // Border-tracing
+    unsigned npx = spx;
+    unsigned npy = spy;
+    bool cont = false;
+
+    unsigned start = 0;
+    unsigned xk = 0;
+    unsigned c = 0;
+
+    for (unsigned int i = 0; i < pixels_y - 1; i++) {
+        start = p8trace(npx, npy, start + 1, cc);
+        if (start <= 4) xk = start + 4;
+        else xk = start - 4;
+        
+        c = bytef_pixel_loc(npx, npy, xk);
+        data[c] = 0xFF;
+        data[c + 1] = 0x00;
+        data[c + 2] = 0x00;
+
+        std::cout << start << '\n';
+    }
+}
+
 void generateRandomContour(unsigned char *data, int w, int h, int px, int py, int color) {
 
     unsigned int c = 0;
@@ -724,7 +943,8 @@ int main(int argc, char **argv) {
     //generateCircle(pixels, 0xFFFFFF, 250);
     //generateCircle(pixels, 0x00FFFF, 200);
     //bt_circle(pixels, pixels_x, pixels_y);
-    mandelbrotSet(pixels, pixels_x, pixels_y);
+    //mandelbrotSet(pixels, pixels_x, pixels_y);
+    bt_mandelbrot(pixels, pixels_x, pixels_y);
     //bt_contour(pixels, pixels_x, pixels_y);
     //colorsquares(pixels, pixels_x, pixels_y);
     //printContentsOfCP();
