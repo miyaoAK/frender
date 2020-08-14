@@ -59,7 +59,9 @@ namespace helpers {
 
 }
 
-unsigned int colorPalette[256];
+#define color_MAX 256
+
+unsigned int colorPalette[color_MAX];
 
 void fillcolorp() {
     int colors[] = {
@@ -117,10 +119,16 @@ void fillcolorp2() {
 void fillcolorp3() {
     unsigned int i = 0;
     unsigned int c = 0x000000;
-    while (i < 256) {
+    while (i < color_MAX) {
         colorPalette[i] = c;
         i++;
         c += 0x010101;
+    }
+}
+
+void fillcolorp4() {
+    for (unsigned i = 0; i < color_MAX; i++) {
+        colorPalette[i] = (i * 1600) + (std::rand() % 1600);
     }
 }
 
@@ -482,13 +490,13 @@ unsigned pixelcolor(unsigned maxiter, float px, float py) {
 unsigned p8trace(unsigned& sx, unsigned& sy, unsigned char start, unsigned cc) {
     float kx = helpers::calculate_scaling_factor(-2.5f, 1.f, 0.f, static_cast<float>(pixels_x));
     float ky = helpers::calculate_scaling_factor(-1.f, 1.f, 0.f, static_cast<float>(pixels_y));
-    unsigned kt = start;
+    unsigned kt = start + 1;
     char match_key = -1;
     char mismatch_key = -1;
 
     unsigned b8color[8];
 
-    for (int i = 0; i < 8; i++) {
+    for (int i = 0; i <= 7; i++) {
         if (kt == 1 && sy > 0 && sx > 0) {
             float py = helpers::calculate_scaled(static_cast<float>(sy - 1), ky, -1.f);
             float px = helpers::calculate_scaled(static_cast<float>(sx), kx, -2.5f);
@@ -569,37 +577,45 @@ unsigned p8trace(unsigned& sx, unsigned& sy, unsigned char start, unsigned cc) {
     }
 
     if (match_key == 1) {
+        if (start == 1) return 0;
         sy--;
         return 5;
     }
     else if (match_key == 2) {
+        if (start == 2) return 0;
         sx--;
         sy--;
         return 6;
     }
     else if (match_key == 3) {
+        if (start == 3) return 0;
         sx--;
         return 7;
     }
     else if (match_key == 4) {
+        if (start == 4) return 0;
         sx--;
         sy++;
         return 8;
     }
     else if (match_key == 5) {
+        if (start == 5) return 0;
         sy++;
         return 1;
     }
     else if (match_key == 6) {
+        if (start == 6) return 0;
         sx++;
         sy++;
         return 2;
     }
     else if (match_key == 7) {
+        if (start == 7) return 0;
         sx++;
         return 3;
     }
     else if (match_key == 8) {
+        if (start == 8) return 0;
         sx++;
         sy--;
         return 4;
@@ -609,75 +625,117 @@ unsigned p8trace(unsigned& sx, unsigned& sy, unsigned char start, unsigned cc) {
 }
 
 unsigned bytef_pixel_loc(unsigned sx, unsigned sy, unsigned key) {
-    auto val = sy * pixels_x * 3;
+    unsigned val = sy * pixels_x * 3;
     val += sx * 3;
+    unsigned tmp = 0;
     if (key == 1) {
+        if (sy - 1 == UINT32_MAX) return UINT32_MAX;
         return val - (pixels_x * 3);
     } else if (key == 2) {
+        if (sy - 1 == UINT32_MAX) return UINT32_MAX;
+        if (sx - 1 == UINT32_MAX) return UINT32_MAX;
         return val - (pixels_x * 3) - 3;
     } else if (key == 3) {
+        if (sx - 1 == UINT32_MAX) return UINT32_MAX;
         return val - 3;
     } else if (key == 4) {
+        if (sx - 1 == UINT32_MAX) return UINT32_MAX;
+        if (sy + 1 >= pixels_y) return UINT32_MAX;
         return val + (pixels_x * 3) - 3;
     } else if (key == 5) {
+        if (sy + 1 >= pixels_y) return UINT32_MAX;
         return val + (pixels_x * 3);
     } else if (key == 6) {
+        if (sy + 1 >= pixels_y) return UINT32_MAX;
+        if (sx + 1 >= pixels_x) return UINT32_MAX;
         return val + (pixels_x * 3) + 3;
     } else if (key == 7) {
+        if (sx + 1 >= pixels_x) return UINT32_MAX;
         return val + 3;
     } else if (key == 8) {
+        if (sx + 1 >= pixels_x) return UINT32_MAX;
+        if (sy - 1 == UINT32_MAX) return UINT32_MAX;
         return val - (pixels_x * 3) + 3;
     }
 }
 
-void bt_mandelbrot(unsigned char* data, int w, int h) {
-    float kx = helpers::calculate_scaling_factor(-2.5f, 1.f, 0.f, static_cast<float>(w));
-    float ky = helpers::calculate_scaling_factor(-1.f, 1.f, 0.f, static_cast<float>(h));
-    unsigned cc = pixelcolor(256, -1.f, -2.5f);
-    unsigned ctable[50];
-    unsigned ctable_iter = 0;
-    unsigned spx = 0;
-    unsigned spy = 0;
-    bool switchAlgoToBT = false;
-    for (unsigned y = 0; y < h; y++) {
-        float py = helpers::calculate_scaled(static_cast<float>(y), ky, -1.f);
-        for (unsigned x = 1; x < w; x++) {
-            float px = helpers::calculate_scaled(static_cast<float>(x), kx, -2.5f);
-            float nc = pixelcolor(256, px, py);
-            if (nc != cc) {
-                std::cout << "nc: " << nc << '\n';
-                switchAlgoToBT = true;
-                ctable[ctable_iter] = cc;
-                ctable_iter++;
-                spx = x;
-                spy = y;
-                break;
-            }
-        }
-        if (switchAlgoToBT) break;
-    }
-
-    std::cout << "Color: " << cc << '\n';
-    // Border-tracing
-    unsigned npx = spx;
-    unsigned npy = spy;
-    bool cont = false;
-
+unsigned colorBorder(unsigned char *data, unsigned sx, unsigned sy, unsigned color) {
+    unsigned npx = sx;
+    unsigned npy = sy;
     unsigned start = 0;
     unsigned xk = 0;
     unsigned c = 0;
 
-    for (unsigned int i = 0; i < pixels_y - 1; i++) {
-        start = p8trace(npx, npy, start + 1, cc);
+    unsigned char r = color >> 0x10;
+    unsigned char g = color >> 0x08;
+    unsigned char b = color;
+
+    unsigned iter = 0;
+
+    while(true) {
+        start = p8trace(npx, npy, start, color);
+        if (start == 0) break;
         if (start <= 4) xk = start + 4;
         else xk = start - 4;
-        
-        c = bytef_pixel_loc(npx, npy, xk);
-        data[c] = 0xFF;
-        data[c + 1] = 0x00;
-        data[c + 2] = 0x00;
 
-        std::cout << start << '\n';
+        c = bytef_pixel_loc(npx, npy, xk);
+        if (c != UINT32_MAX) {
+            if (data[c] == r && data[c + 1] == g && data[c + 2] == b) {
+                break;
+            } else {
+                data[c] = r;
+                data[c + 1] = g;
+                data[c + 2] = b;
+            }
+        } else {
+            break;
+        }
+        iter++;
+    }
+    return iter;
+}
+
+void bt_mandelbrot(unsigned char* data, int w, int h, unsigned sx, unsigned sy) {
+    float kx = helpers::calculate_scaling_factor(-2.5f, 1.f, 0.f, static_cast<float>(w));
+    float ky = helpers::calculate_scaling_factor(-1.f, 1.f, 0.f, static_cast<float>(h));
+    unsigned ctable[50] = { 0 };
+    unsigned ctable_iter = 0;
+    unsigned spy = sy;
+    unsigned spx = sx;
+
+    for (unsigned int i = 0; i < 10 && spx < w; i++) {
+        float py = helpers::calculate_scaled(static_cast<float>(spy), ky, -1.f);
+        float px = helpers::calculate_scaled(static_cast<float>(spx), kx, -2.5f);
+        unsigned cc = pixelcolor(color_MAX, px, py);
+        unsigned nc = 0;
+        bool switchAlgoToBT = false;
+
+        for (unsigned y = spy; y < h; y++) {
+            py = helpers::calculate_scaled(static_cast<float>(y), ky, -1.f);
+            for (unsigned x = spx; x < w; x++) {
+                px = helpers::calculate_scaled(static_cast<float>(x), kx, -2.5f);
+                nc = pixelcolor(color_MAX, px, py);
+                if (nc != cc) {
+                    bool intable = false;
+                    for (int i = 0; i < ctable_iter; i++) {
+                        if (ctable[i] == nc) {
+                            intable = true;
+                            break;
+                        }
+                    }
+                    if (!intable) {
+                        switchAlgoToBT = true;
+                        ctable[ctable_iter] = cc;
+                        ctable_iter++;
+                        spx = x;
+                        spy = y;
+                        break;
+                    }
+                }
+            }
+            if (switchAlgoToBT) break;
+        }
+        auto bl = colorBorder(data, spx, spy, cc);
     }
 }
 
@@ -778,15 +836,12 @@ void dividersOfX(unsigned x) {
     }
 }
 
+
 int main(int argc, char **argv) {
-
-    //calculate_pxo(pixels_x);
     std::srand(std::time(nullptr));
-    pixel_array pa;
-    calculate_pxo(pixels_x, pa);
 
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
     if (!glfwInit()) {
         glfwTerminate();
@@ -811,11 +866,10 @@ int main(int argc, char **argv) {
     glfwSetScrollCallback(window, scroll_callback);
 
     float vertices[] = {
-        // positions          // colors           // texture coords
-         1.f,  1.f, 0.f,   1.f, 0.f, 0.f,   1.f, 1.f, // top right
-         1.f, -1.f, 0.f,   0.f, 1.f, 0.f,   1.0f, 0.0f, // bottom right
-        -1.f, -1.f, 0.f,   0.f, 0.f, 1.f,   0.0f, 0.0f, // bottom left
-        -1.f,  1.f, 0.f,   1.f, 1.f, 0.f,   0.0f, 1.f  // top left 
+         1.f,  1.f, 0.f,    1.f, 0.f, 0.f,  1.f, 1.f,
+         1.f, -1.f, 0.f,    0.f, 1.f, 0.f,  1.0f, 0.0f,
+        -1.f, -1.f, 0.f,    0.f, 0.f, 1.f,  0.0f, 0.0f,
+        -1.f,  1.f, 0.f,    1.f, 1.f, 0.f,  0.0f, 1.f
     };
 
     unsigned int indices[] = {
@@ -861,8 +915,6 @@ int main(int argc, char **argv) {
     glDeleteShader(vertexShader);
     glDeleteShader(fragmentShader);
 
-    generatePaletteTexture(colorPalette, 256);
-
     unsigned int mandelTexture;
     glGenTextures(1, &mandelTexture);
     glBindTexture(GL_TEXTURE_2D, mandelTexture);
@@ -872,10 +924,14 @@ int main(int argc, char **argv) {
 
     unsigned char* pixels = (unsigned char*)malloc(pixels_x * pixels_y * 3);
     memset(pixels, 0, pixels_x * pixels_y * 3);
-    fillcolorp3();
 
-    mandelbrotSet(pixels, pixels_x, pixels_y);
-    bt_mandelbrot(pixels, pixels_x, pixels_y);
+    fillcolorp4();
+    //mandelbrotSet(pixels, pixels_x, pixels_y);
+    bt_mandelbrot(pixels, pixels_x, pixels_y, 0, 0);
+    //auto c2 = bt_mandelbrot(pixels, pixels_x, pixels_y, 500, 0);
+    //auto c3 = bt_mandelbrot(pixels, pixels_x, pixels_y, 700, 0);
+
+    //std::cout << std::hex << "c1: 0x" << c1 << '\t' << "c2: 0x" << c2 << '\t' << "c3: 0x" << c3 << '\n';
 
     if (argc == 1) {
 
