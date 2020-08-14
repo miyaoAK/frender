@@ -4,12 +4,8 @@
 #include <vector>
 
 #include <glm.hpp>
-#include <gtc/matrix_transform.hpp>
-#include <gtc/type_ptr.hpp>
 #include <glad/glad.h>
 #include <glfw3.h>
-
-#include "stb_image.h"
 
 int sHeight = 1080;
 int sWidth = 1920;
@@ -26,26 +22,6 @@ void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
 void processInput(GLFWwindow* window) {
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
         glfwSetWindowShouldClose(window, true);
-    }
-    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) {
-        //medianx += 0.01f;
-        printf("D pressed!\n");
-    }
-    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) {
-        //medianx -= 0.01f;
-        printf("A pressed!\n");
-    }
-    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
-        //mediany += 0.01f;
-    }
-    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) {
-        //mediany -= 0.01f;
-    }
-    if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS) {
-        //mx1 -= 0.01f;
-    }
-    if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS) {
-        //my2 -= 0.01f;
     }
 }
 
@@ -270,7 +246,7 @@ T linear_interpolation(T a, T b, T c) {
     return a + ((1/3) * (b - a - c));
 }
 
-#define SIZE_PX (1920)
+#define SIZE_PX (pixels_y)
 
 struct pixel_array {
     float px[SIZE_PX];
@@ -398,8 +374,6 @@ void cc_mandelbrot(unsigned char* data, int w, int h, pixel_array& pa) {
     std::cout << "elapsed time: " << elapsed_seconds.count() << "s\t" << de_iter << " log calculations performed!\n";
 }
 
-// (x * x) + (y * y) <= (1 << 16) && iter < max_iter
-
 bool equal_color(unsigned char* data, unsigned int c, unsigned int color) {
     if (data[c] == (unsigned char)(color >> 0x10)
         && data[c + 1] == (unsigned char)(color >> 0x08)
@@ -487,35 +461,6 @@ void bt_contour(unsigned char* data, int w, int h) {
 
     }
 }
-
-
-void bt_circle(unsigned char* data, int w, int h) {
-
-}
-/*
-void bt_mandelbrot(unsigned char *data, int w, int h) {
-    int max_i = 256;
-    for(unsigned int y = 0; y < h; y++) {
-        float py = helpers::calculate_scaled(static_cast<float>(ph), scalingFactory, my1);
-        for(unsigned int x = 0; x < w; x++) {
-            float px = helpers::calculate_scaled(static_cast<float>(pw), scalingFactorx, mx1);
-            int i = 0;
-            float x = 0.f;
-            float y = 0.f;
-            float x2 = 0.f;
-            float y2 = 0.f;
-            while (x2 + y2 <= 4 && i < max_i) {
-                y = ((x + x) * y) + py;
-                x = x2 - y2 + px;
-                x2 = x * x;
-                y2 = y * y;
-                i++;
-            }
-            if(i < max_i) break;
-        }
-    }
-}
-*/
 
 unsigned pixelcolor(unsigned maxiter, float px, float py) {
     int i = 0;
@@ -865,9 +810,6 @@ int main(int argc, char **argv) {
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
     glfwSetScrollCallback(window, scroll_callback);
 
-    const char* img = "C:\\Users\\abkour\\source\\repos\\TextRenderer\\img\\wall.jpg";
-    const char* img2 = "C:\\Users\\abkour\\source\\repos\\TextRenderer\\img\\awesomeface.png";
-
     float vertices[] = {
         // positions          // colors           // texture coords
          1.f,  1.f, 0.f,   1.f, 0.f, 0.f,   1.f, 1.f, // top right
@@ -931,23 +873,9 @@ int main(int argc, char **argv) {
     unsigned char* pixels = (unsigned char*)malloc(pixels_x * pixels_y * 3);
     memset(pixels, 0, pixels_x * pixels_y * 3);
     fillcolorp3();
-    //generateRandomContour(pixels, pixels_x, pixels_y, 0, 0, 0xabcdef);
-    //generateRandomContour(pixels, pixels_x, pixels_y, 200, 0, 0x123456);
-    //generateRandomContour(pixels, pixels_x, pixels_y, 400, 0, 0x789abc);
-    //generateRandomContour(pixels, pixels_x, pixels_y, 600, 0, 0x00FFFF);
-    //generateCircle(pixels, 0xFFFFFF, 700);
-    //generateCircle(pixels, 0xFF00FF, 300);
-    //generatepl(pixels, 2);
-    //auto count = nonblackpixels(pixels, pixels_x * pixels_y * 3);
-    //std::cout << "Non-black pixels: " << count << '\n';
-    //generateCircle(pixels, 0xFFFFFF, 250);
-    //generateCircle(pixels, 0x00FFFF, 200);
-    //bt_circle(pixels, pixels_x, pixels_y);
-    //mandelbrotSet(pixels, pixels_x, pixels_y);
+
+    mandelbrotSet(pixels, pixels_x, pixels_y);
     bt_mandelbrot(pixels, pixels_x, pixels_y);
-    //bt_contour(pixels, pixels_x, pixels_y);
-    //colorsquares(pixels, pixels_x, pixels_y);
-    //printContentsOfCP();
 
     if (argc == 1) {
 
@@ -957,9 +885,7 @@ int main(int argc, char **argv) {
 
             glClearColor(0.5f, 0.5f, 0.5f, 1.f);
             glClear(GL_COLOR_BUFFER_BIT);
-
-            //cc_mandelbrot(pixels, pixels_x, pixels_y, pa);
-            //colorsquares(pixels, pixels_x, pixels_y);     
+ 
             glActiveTexture(GL_TEXTURE0);
             glBindTexture(GL_TEXTURE_2D, mandelTexture);
             glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, pixels_x, pixels_y, 0, GL_RGB, GL_UNSIGNED_BYTE, (void*)pixels);
