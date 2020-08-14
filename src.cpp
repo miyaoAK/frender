@@ -698,44 +698,37 @@ unsigned colorBorder(unsigned char *data, unsigned sx, unsigned sy, unsigned col
 void bt_mandelbrot(unsigned char* data, int w, int h, unsigned sx, unsigned sy) {
     float kx = helpers::calculate_scaling_factor(-2.5f, 1.f, 0.f, static_cast<float>(w));
     float ky = helpers::calculate_scaling_factor(-1.f, 1.f, 0.f, static_cast<float>(h));
-    unsigned ctable[50] = { 0 };
+    unsigned ctable[color_MAX] = { 0 };
     unsigned ctable_iter = 0;
-    unsigned spy = sy;
     unsigned spx = sx;
+    unsigned spy = sy;
 
-    for (unsigned int i = 0; i < 10 && spx < w; i++) {
-        float py = helpers::calculate_scaled(static_cast<float>(spy), ky, -1.f);
-        float px = helpers::calculate_scaled(static_cast<float>(spx), kx, -2.5f);
+    unsigned nc = 0;
+
+    for (unsigned y = 0; y < h; y++) {
+        float py = helpers::calculate_scaled(static_cast<float>(y), ky, -1.f);
+        float px = helpers::calculate_scaled(static_cast<float>(0), kx, -2.5f);
         unsigned cc = pixelcolor(color_MAX, px, py);
-        unsigned nc = 0;
-        bool switchAlgoToBT = false;
-
-        for (unsigned y = spy; y < h; y++) {
-            py = helpers::calculate_scaled(static_cast<float>(y), ky, -1.f);
-            for (unsigned x = spx; x < w; x++) {
-                px = helpers::calculate_scaled(static_cast<float>(x), kx, -2.5f);
-                nc = pixelcolor(color_MAX, px, py);
-                if (nc != cc) {
-                    bool intable = false;
-                    for (int i = 0; i < ctable_iter; i++) {
-                        if (ctable[i] == nc) {
-                            intable = true;
-                            break;
-                        }
-                    }
-                    if (!intable) {
-                        switchAlgoToBT = true;
-                        ctable[ctable_iter] = cc;
-                        ctable_iter++;
-                        spx = x;
-                        spy = y;
+        for (unsigned x = 0; x < w; x++) {
+            px = helpers::calculate_scaled(static_cast<float>(x), kx, -2.5f);
+            nc = pixelcolor(color_MAX, px, py);
+            if (nc != cc) {
+                bool intable = false;
+                for (int i = 0; i < ctable_iter; i++) {
+                    if (ctable[i] == cc) {
+                        intable = true;
                         break;
                     }
                 }
+                if (!intable) {
+                    ctable[ctable_iter] = cc;
+                    ctable_iter++;
+                    colorBorder(data, x - 1, y, cc);
+                }
+                cc = nc;
             }
-            if (switchAlgoToBT) break;
         }
-        auto bl = colorBorder(data, spx, spy, cc);
+        printf("y: %d\n", y);
     }
 }
 
@@ -836,6 +829,13 @@ void dividersOfX(unsigned x) {
     }
 }
 
+unsigned colorAtXY(unsigned x, unsigned y) {
+    float kx = helpers::calculate_scaling_factor(-2.5f, 1.f, 0.f, static_cast<float>(pixels_x));
+    float ky = helpers::calculate_scaling_factor(-1.f, 1.f, 0.f, static_cast<float>(pixels_y));
+    float px = helpers::calculate_scaled(static_cast<float>(x), kx, -2.5f);
+    float py = helpers::calculate_scaled(static_cast<float>(y), ky, -1.f);
+    return pixelcolor(color_MAX, px, py);
+}
 
 int main(int argc, char **argv) {
     std::srand(std::time(nullptr));
@@ -925,9 +925,22 @@ int main(int argc, char **argv) {
     unsigned char* pixels = (unsigned char*)malloc(pixels_x * pixels_y * 3);
     memset(pixels, 0, pixels_x * pixels_y * 3);
 
-    fillcolorp4();
+    fillcolorp2();
+    std::cout << "Color at (1294, 0): 0x" << std::hex << colorAtXY(1294, 0) << '\n';
+    std::cout << "Color at (1293, 0): 0x" << std::hex << colorAtXY(1293, 0) << '\n';
+    std::cout << "Color at (1293, 1): 0x" << std::hex << colorAtXY(1293, 1) << '\n';
+    std::cout << "Color at (1294, 1): 0x" << std::hex << colorAtXY(1294, 1) << '\n';
+    std::cout << "Color at (1294, 2): 0x" << std::hex << colorAtXY(1294, 2) << '\n';
+    std::cout << "Color at (1293, 2): 0x" << std::hex << colorAtXY(1293, 2) << '\n';
     //mandelbrotSet(pixels, pixels_x, pixels_y);
     bt_mandelbrot(pixels, pixels_x, pixels_y, 0, 0);
+    /*
+    std::cout << "Color at (1294, 0): 0x" << std::hex << colorAtXY(1294, 0) << '\n';
+    std::cout << "Color at (1293, 0): 0x" << std::hex << colorAtXY(1293, 0) << '\n';
+    std::cout << "Color at (1293, 1): 0x" << std::hex << colorAtXY(1293, 1) << '\n';
+    std::cout << "Color at (1294, 1): 0x" << std::hex << colorAtXY(1294, 1) << '\n';
+    std::cout << "Color at (1294, 2): 0x" << std::hex << colorAtXY(1294, 2) << '\n';
+    std::cout << "Color at (1293, 2): 0x" << std::hex << colorAtXY(1293, 2) << '\n';*/
     //auto c2 = bt_mandelbrot(pixels, pixels_x, pixels_y, 500, 0);
     //auto c3 = bt_mandelbrot(pixels, pixels_x, pixels_y, 700, 0);
 
